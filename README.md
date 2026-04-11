@@ -14,13 +14,13 @@ A yoga & spiritual practice companion app built with React Native and Expo. Sadh
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | [Expo](https://expo.dev) (SDK 54) / React Native 0.81 |
-| Routing | [Expo Router](https://docs.expo.dev/router/introduction/) v6 (file-based) |
-| State Management | [Zustand](https://github.com/pmndrs/zustand) |
-| Backend & Auth | [Supabase](https://supabase.com) (Postgres, Auth, Row-Level Security) |
-| Language | TypeScript 5.9 |
+| Layer            | Technology                                                                |
+| ---------------- | ------------------------------------------------------------------------- |
+| Framework        | [Expo](https://expo.dev) (SDK 54) / React Native 0.81                     |
+| Routing          | [Expo Router](https://docs.expo.dev/router/introduction/) v6 (file-based) |
+| State Management | [Zustand](https://github.com/pmndrs/zustand)                              |
+| Backend & Auth   | [Supabase](https://supabase.com) (Postgres, Auth, Row-Level Security)     |
+| Language         | TypeScript 5.9                                                            |
 
 ## 📁 Project Structure
 
@@ -92,14 +92,14 @@ Then press **i** for iOS Simulator, **a** for Android Emulator, or scan the QR c
 
 The app uses a warm, earthy colour palette inspired by natural materials:
 
-| Token | Hex | Usage |
-|---|---|---|
-| `sand` | `#F5F0E8` | Primary background |
-| `clay` | `#C4956A` | Warm accent |
-| `earth` | `#5C4033` | Primary text |
-| `sage` | `#7A8B6F` | Success / progress |
+| Token        | Hex       | Usage                      |
+| ------------ | --------- | -------------------------- |
+| `sand`       | `#F5F0E8` | Primary background         |
+| `clay`       | `#C4956A` | Warm accent                |
+| `earth`      | `#5C4033` | Primary text               |
+| `sage`       | `#7A8B6F` | Success / progress         |
 | `terracotta` | `#C75B39` | Alerts / important actions |
 
 ## 📜 License
 
-This project is private.
+This project is private for now.
