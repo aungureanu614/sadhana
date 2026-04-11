@@ -72,6 +72,14 @@ export default function MainLayout() {
           headerShown: false,
         }}
       />
+      <Tabs.Screen
+        name="intention"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
     </Tabs>
   );
 }

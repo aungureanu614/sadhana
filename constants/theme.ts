@@ -2,31 +2,32 @@
 
 export const colors = {
   // Core palette — warm, earthy, sacred
-  sand: '#F5F0E8',         // primary background
-  sandLight: '#FAF7F2',    // card backgrounds
-  sandDark: '#E8E0D0',     // borders, dividers
+  sand: '#F5F0E8', // primary background
+  sandLight: '#FAF7F2', // card backgrounds
+  sandDark: '#E8E0D0', // borders, dividers
 
-  clay: '#C4956A',         // warm accent
-  clayLight: '#D4AD8A',    // hover/active states
-  clayDark: '#A67A52',     // pressed states
+  clay: '#C4956A', // warm accent
+  clayLight: '#D4AD8A', // hover/active states
+  clayDark: '#A67A52', // pressed states
 
-  earth: '#5C4033',        // primary text
-  earthLight: '#7A6355',   // secondary text
-  earthMuted: '#9B8B7E',   // placeholder text
+  earth: '#5C4033', // primary text
+  earthLight: '#7A6355', // secondary text
+  earthMuted: '#9B8B7E', // placeholder text
+  earthDark: '#3D3029', // deep warm background (intention screen)
 
-  sage: '#7A8B6F',         // success, growth, progress
-  sageDark: '#5E6F53',     // active/dark variant
+  sage: '#7A8B6F', // success, growth, progress
+  sageDark: '#5E6F53', // active/dark variant
 
-  terracotta: '#C75B39',   // alerts, important actions
-  indigo: '#4A5568',       // links, interactive elements
+  terracotta: '#C75B39', // alerts, important actions
+  indigo: '#4A5568', // links, interactive elements
 
   white: '#FFFFFF',
   black: '#1A1A1A',
 
   // Dosha colors
-  vata: '#8B9FBF',         // airy blue-gray
-  pitta: '#C75B39',        // fiery terracotta
-  kapha: '#7A8B6F',        // earthy sage
+  vata: '#8B9FBF', // airy blue-gray
+  pitta: '#C75B39', // fiery terracotta
+  kapha: '#7A8B6F', // earthy sage
 
   // Chakra colors (for future use)
   muladhara: '#C75B39',
@@ -41,8 +42,8 @@ export const colors = {
 export const fonts = {
   // Use system fonts for now — swap for custom fonts later
   // To add custom fonts: npx expo install expo-font
-  heading: 'System',       // replace with a serif like 'Cormorant' later
-  body: 'System',          // replace with something like 'Lora' later
+  heading: 'System', // replace with a serif like 'Cormorant' later
+  body: 'System', // replace with something like 'Lora' later
   mono: 'monospace',
 };
 

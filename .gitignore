@@ -44,3 +44,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+#schema 
+schema.sql
+CLAUDE_CONTEXT.md

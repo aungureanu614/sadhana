@@ -1,7 +1,17 @@
 // lib/store.ts
 import { create } from 'zustand';
 import { supabase } from './supabase';
-import type { Profile, Path, Module, Lesson, Practice, UserProgress, JournalEntry } from '../types';
+import type {
+  Profile,
+  Path,
+  Module,
+  Lesson,
+  Practice,
+  UserProgress,
+  JournalEntry,
+  Quote,
+  DailyIntention,
+} from '../types';
 import type { Session } from '@supabase/supabase-js';
 
 interface AppState {
@@ -19,6 +29,9 @@ interface AppState {
   // User data
   progress: UserProgress[];
   journalEntries: JournalEntry[];
+  todayIntention: DailyIntention | null;
+  currentQuote: Quote | null;
+  hasSeenIntention: boolean;
 
   // Actions — Auth
   setSession: (session: Session | null) => void;
@@ -43,6 +56,12 @@ interface AppState {
     mood?: string;
   }) => Promise<void>;
 
+  // Actions — Intention
+  fetchRandomQuote: () => Promise<void>;
+  fetchTodayIntention: () => Promise<void>;
+  saveIntention: (intention: string) => Promise<void>;
+  setHasSeenIntention: (seen: boolean) => void;
+
   // Helpers
   getModulesForPath: (pathId: string) => Module[];
   getLessonsForModule: (moduleId: string) => Lesson[];
@@ -60,6 +79,9 @@ export const useStore = create<AppState>((set, get) => ({
   practices: [],
   progress: [],
   journalEntries: [],
+  todayIntention: null,
+  currentQuote: null,
+  hasSeenIntention: false,
 
   // ---- Auth ----
   setSession: (session) => set({ session, isLoading: false }),
@@ -237,6 +259,60 @@ export const useStore = create<AppState>((set, get) => ({
       set({ journalEntries: [data as JournalEntry, ...get().journalEntries] });
     }
   },
+
+  // ---- Intention ----
+  fetchRandomQuote: async () => {
+    // Fetch all active quotes and pick one at random (small table, fine to fetch all)
+    const { data, error } = await supabase.from('quotes').select('*').eq('is_active', true);
+
+    if (!error && data && data.length > 0) {
+      const randomIndex = Math.floor(Math.random() * data.length);
+      set({ currentQuote: data[randomIndex] as Quote });
+    }
+  },
+
+  fetchTodayIntention: async () => {
+    const { session } = get();
+    if (!session) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('daily_intentions')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('date', today)
+      .single();
+
+    if (!error && data) {
+      set({ todayIntention: data as DailyIntention, hasSeenIntention: true });
+    }
+  },
+
+  saveIntention: async (intention: string) => {
+    const { session } = get();
+    if (!session) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('daily_intentions')
+      .upsert({
+        user_id: session.user.id,
+        intention,
+        date: today,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('saveIntention error:', error.message);
+    }
+
+    if (!error && data) {
+      set({ todayIntention: data as DailyIntention, hasSeenIntention: true });
+    }
+  },
+
+  setHasSeenIntention: (seen: boolean) => set({ hasSeenIntention: seen }),
 
   // ---- Helpers ----
   getModulesForPath: (pathId: string) => {

@@ -97,6 +97,23 @@ export interface JournalEntry {
   created_at: string;
 }
 
+export interface Quote {
+  id: string;
+  body: string;
+  source: string | null;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface DailyIntention {
+  id: string;
+  user_id: string;
+  intention: string;
+  date: string;
+  created_at: string;
+}
+
 // ---- Content block types ----
 
 export interface TeachingContent {
