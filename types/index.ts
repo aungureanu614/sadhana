@@ -106,10 +106,13 @@ export interface Quote {
   created_at: string;
 }
 
+export type Mood = 'energized' | 'restless' | 'heavy' | 'balanced';
+
 export interface DailyIntention {
   id: string;
   user_id: string;
   intention: string;
+  mood: Mood | null;
   date: string;
   created_at: string;
 }

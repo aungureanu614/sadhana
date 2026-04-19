@@ -11,6 +11,7 @@ import type {
   JournalEntry,
   Quote,
   DailyIntention,
+  Mood,
 } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
@@ -60,7 +61,20 @@ interface AppState {
   fetchRandomQuote: () => Promise<void>;
   fetchTodayIntention: () => Promise<void>;
   saveIntention: (intention: string) => Promise<void>;
+  upsertMood: (mood: Mood) => Promise<void>;
   setHasSeenIntention: (seen: boolean) => void;
+
+  // Actions — Recommendations
+  fetchRecommendedPractice: () => Promise<void>;
+  recommendedPractice: Practice | null;
+  nextLesson: {
+    lesson: Lesson;
+    moduleName: string;
+    pathName: string;
+    completedCount: number;
+    totalCount: number;
+  } | null;
+  fetchNextLesson: () => Promise<void>;
 
   // Helpers
   getModulesForPath: (pathId: string) => Module[];
@@ -82,6 +96,8 @@ export const useStore = create<AppState>((set, get) => ({
   todayIntention: null,
   currentQuote: null,
   hasSeenIntention: false,
+  recommendedPractice: null,
+  nextLesson: null,
 
   // ---- Auth ----
   setSession: (session) => set({ session, isLoading: false }),
@@ -313,6 +329,132 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setHasSeenIntention: (seen: boolean) => set({ hasSeenIntention: seen }),
+
+  // ---- Mood ----
+  upsertMood: async (mood: Mood) => {
+    const { session } = get();
+    if (!session) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('daily_intentions')
+      .upsert({
+        user_id: session.user.id,
+        intention: get().todayIntention?.intention || '',
+        mood,
+        date: today,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      set({ todayIntention: data as DailyIntention });
+    }
+  },
+
+  // ---- Recommended Practice ----
+  fetchRecommendedPractice: async () => {
+    const { profile } = get();
+    const primaryDosha = profile?.dosha_result?.split('_')[0] || null;
+
+    const { data, error } = await supabase.from('practices').select('*');
+    if (error || !data || data.length === 0) return;
+
+    const practices = data as Practice[];
+    if (primaryDosha) {
+      practices.sort((a, b) => {
+        const scoreA = (a.dosha_affinity as Record<string, number>)?.[primaryDosha] || 0;
+        const scoreB = (b.dosha_affinity as Record<string, number>)?.[primaryDosha] || 0;
+        return scoreB - scoreA;
+      });
+    } else {
+      // No dosha — pick a beginner practice
+      const beginners = practices.filter((p) => p.difficulty === 'beginner');
+      if (beginners.length > 0) {
+        set({ recommendedPractice: beginners[0] });
+        return;
+      }
+    }
+    set({ recommendedPractice: practices[0] });
+  },
+
+  // ---- Next Lesson ----
+  fetchNextLesson: async () => {
+    const { session } = get();
+    if (!session) {
+      set({ nextLesson: null });
+      return;
+    }
+
+    // Fetch progress
+    const { data: progressData } = await supabase
+      .from('user_progress')
+      .select('lesson_id, completed_at')
+      .eq('user_id', session.user.id)
+      .order('completed_at', { ascending: false });
+
+    const completedIds = new Set(
+      (progressData || []).map((p: { lesson_id: string }) => p.lesson_id),
+    );
+
+    if (completedIds.size === 0) {
+      set({ nextLesson: null });
+      return;
+    }
+
+    // Find the most recently completed lesson to determine active module
+    const lastCompletedId = (progressData || [])[0]?.lesson_id;
+    const { data: lastLesson } = await supabase
+      .from('lessons')
+      .select('module_id')
+      .eq('id', lastCompletedId)
+      .single();
+
+    if (!lastLesson) {
+      set({ nextLesson: null });
+      return;
+    }
+
+    // Get all lessons in that module
+    const { data: moduleLessons } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('module_id', lastLesson.module_id)
+      .order('sort_order');
+
+    if (!moduleLessons) {
+      set({ nextLesson: null });
+      return;
+    }
+
+    const next = (moduleLessons as Lesson[]).find((l) => !completedIds.has(l.id));
+    const completedCount = (moduleLessons as Lesson[]).filter((l) => completedIds.has(l.id)).length;
+
+    // Get module + path names
+    const { data: mod } = await supabase
+      .from('modules')
+      .select('name, path_id')
+      .eq('id', lastLesson.module_id)
+      .single();
+
+    const { data: path } = mod
+      ? await supabase.from('paths').select('name').eq('id', mod.path_id).single()
+      : { data: null };
+
+    if (next && mod && path) {
+      set({
+        nextLesson: {
+          lesson: next,
+          moduleName: mod.name,
+          pathName: path.name,
+          completedCount,
+          totalCount: moduleLessons.length,
+        },
+      });
+    } else {
+      set({ nextLesson: null });
+    }
+  },
 
   // ---- Helpers ----
   getModulesForPath: (pathId: string) => {

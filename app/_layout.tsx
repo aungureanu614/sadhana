@@ -12,9 +12,8 @@ export default function RootLayout() {
   const segments = useSegments();
   const { session, isLoading, setSession, hasSeenIntention, setHasSeenIntention } = useStore();
 
-  // Listen for auth state changes
+  // Listen for auth state changes (kept for future use when login is re-enabled)
   useEffect(() => {
-    // Restoring a persisted session (app restart) — skip the candle screen
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setHasSeenIntention(true);
       setSession(session);
@@ -23,7 +22,6 @@ export default function RootLayout() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Only show the candle screen on a fresh SIGNED_IN event
       if (event === 'SIGNED_IN') {
         setHasSeenIntention(false);
       }
@@ -33,23 +31,21 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Redirect based on auth state
+  // Redirect — skip auth, go straight to main screens
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const inMainGroup = segments[0] === '(main)';
 
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (session && inAuthGroup) {
-      // Send new logins to the intention screen; if already seen today, go home
+    // If not already in (main), redirect to intention or home
+    if (!inMainGroup) {
       if (hasSeenIntention) {
         router.replace('/(main)/home');
       } else {
         router.replace('/(main)/intention');
       }
     }
-  }, [session, isLoading, segments]);
+  }, [isLoading, segments, hasSeenIntention]);
 
   if (isLoading) {
     return (
