@@ -8,7 +8,8 @@ import { colors, spacing } from '../../constants/theme';
 
 export default function IntentionScreen() {
   const router = useRouter();
-  const { currentQuote, fetchRandomQuote, setHasSeenIntention, profile, fetchProfile } = useStore();
+  const { currentQuote, fetchRandomQuote, saveIntentionTimestamp, profile, fetchProfile } =
+    useStore();
 
   const [hasLit, setHasLit] = useState(false);
 
@@ -73,7 +74,7 @@ export default function IntentionScreen() {
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }).start(() => {
-        setHasSeenIntention(true);
+        saveIntentionTimestamp();
         router.replace('/(main)/home');
       });
     }, 3000);
@@ -82,13 +83,14 @@ export default function IntentionScreen() {
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.content, { opacity: contentOpacity }]}>
-        {/* Greeting */}
+        {/* Title + Greeting */}
         <View style={styles.titleArea}>
+          <Text style={styles.appTitle}>Sadhana</Text>
           <Text style={styles.greeting}>
             {getGreeting()}
             {profile?.display_name ? `, ${profile.display_name}` : ''}
           </Text>
-          {!hasLit && <Text style={styles.subtitle}>Set your intention and light the candle</Text>}
+          {!hasLit && <Text style={styles.subtitle}>Light the candle to get started</Text>}
         </View>
 
         {/* Candle */}
@@ -140,6 +142,13 @@ const styles = StyleSheet.create({
   titleArea: {
     alignItems: 'center',
     marginBottom: spacing.xl,
+  },
+  appTitle: {
+    fontSize: 36,
+    fontWeight: '200',
+    color: colors.sand,
+    letterSpacing: 2,
+    marginBottom: spacing.md,
   },
   greeting: {
     fontSize: 24,

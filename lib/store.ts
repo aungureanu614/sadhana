@@ -1,5 +1,6 @@
 // lib/store.ts
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import type {
   Profile,
@@ -15,6 +16,25 @@ import type {
 } from '../types';
 import type { Session } from '@supabase/supabase-js';
 
+export interface Resource {
+  id: string;
+  title: string;
+  author: string | null;
+  curator_note: string | null;
+  url: string | null;
+  path_id: string | null;
+  category: string | null;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface DoshaQuestion {
+  id: string;
+  question: string;
+  options: { text: string; vata_score: number; pitta_score: number; kapha_score: number }[];
+  sort_order: number;
+}
+
 interface AppState {
   // Auth
   session: Session | null;
@@ -26,6 +46,8 @@ interface AppState {
   modules: Module[];
   lessons: Lesson[];
   practices: Practice[];
+  resources: Resource[];
+  doshaQuestions: DoshaQuestion[];
 
   // User data
   progress: UserProgress[];
@@ -33,6 +55,9 @@ interface AppState {
   todayIntention: DailyIntention | null;
   currentQuote: Quote | null;
   hasSeenIntention: boolean;
+  intentionChecked: boolean;
+  hasSeenSignupPrompt: boolean;
+  localDoshaResult: { vata: number; pitta: number; kapha: number } | null;
 
   // Actions — Auth
   setSession: (session: Session | null) => void;
@@ -43,6 +68,10 @@ interface AppState {
   fetchModules: (pathId: string) => Promise<void>;
   fetchLessons: (moduleId: string) => Promise<void>;
   fetchPractices: () => Promise<void>;
+  fetchResources: (pathId?: string, category?: string) => Promise<void>;
+  fetchPracticesByNeed: (need: string) => Promise<void>;
+  fetchPracticesByType: (type?: string) => Promise<void>;
+  fetchDoshaQuestions: () => Promise<void>;
 
   // Actions — Progress
   fetchProgress: () => Promise<void>;
@@ -63,6 +92,8 @@ interface AppState {
   saveIntention: (intention: string) => Promise<void>;
   upsertMood: (mood: Mood) => Promise<void>;
   setHasSeenIntention: (seen: boolean) => void;
+  checkIntentionTimestamp: () => Promise<void>;
+  saveIntentionTimestamp: () => Promise<void>;
 
   // Actions — Recommendations
   fetchRecommendedPractice: () => Promise<void>;
@@ -75,6 +106,13 @@ interface AppState {
     totalCount: number;
   } | null;
   fetchNextLesson: () => Promise<void>;
+
+  // Signup prompt
+  setHasSeenSignupPrompt: (seen: boolean) => void;
+
+  // Dosha
+  setLocalDoshaResult: (result: { vata: number; pitta: number; kapha: number }) => void;
+  saveDoshaResult: (result: { vata: number; pitta: number; kapha: number }) => Promise<void>;
 
   // Helpers
   getModulesForPath: (pathId: string) => Module[];
@@ -91,11 +129,16 @@ export const useStore = create<AppState>((set, get) => ({
   modules: [],
   lessons: [],
   practices: [],
+  resources: [],
+  doshaQuestions: [],
   progress: [],
   journalEntries: [],
   todayIntention: null,
   currentQuote: null,
   hasSeenIntention: false,
+  intentionChecked: false,
+  hasSeenSignupPrompt: false,
+  localDoshaResult: null,
   recommendedPractice: null,
   nextLesson: null,
 
@@ -162,6 +205,39 @@ export const useStore = create<AppState>((set, get) => ({
 
     if (!error && data) {
       set({ practices: data as Practice[] });
+    }
+  },
+
+  fetchResources: async (pathId?: string, category?: string) => {
+    let query = supabase.from('resources').select('*').eq('is_active', true).order('sort_order');
+    if (pathId) query = query.eq('path_id', pathId);
+    if (category) query = query.eq('category', category);
+    const { data, error } = await query;
+    if (!error && data) set({ resources: data as Resource[] });
+  },
+
+  fetchPracticesByNeed: async (need: string) => {
+    const { data, error } = await supabase
+      .from('practices')
+      .select('*')
+      .contains('emotional_needs', [need]);
+    if (!error && data) set({ practices: data as Practice[] });
+  },
+
+  fetchPracticesByType: async (type?: string) => {
+    let query = supabase.from('practices').select('*').order('type');
+    if (type) query = query.eq('type', type);
+    const { data, error } = await query;
+    if (!error && data) set({ practices: data as Practice[] });
+  },
+
+  fetchDoshaQuestions: async () => {
+    const { data, error } = await supabase.from('dosha_questions').select('*').order('sort_order');
+    if (error) {
+      console.error('fetchDoshaQuestions error:', error.message);
+    }
+    if (!error && data) {
+      set({ doshaQuestions: data as DoshaQuestion[] });
     }
   },
 
@@ -330,6 +406,32 @@ export const useStore = create<AppState>((set, get) => ({
 
   setHasSeenIntention: (seen: boolean) => set({ hasSeenIntention: seen }),
 
+  checkIntentionTimestamp: async () => {
+    try {
+      const raw = await AsyncStorage.getItem('lastIntentionTimestamp');
+      if (raw) {
+        const elapsed = Date.now() - parseInt(raw, 10);
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (elapsed < twentyFourHours) {
+          set({ hasSeenIntention: true, intentionChecked: true });
+          return;
+        }
+      }
+      set({ hasSeenIntention: false, intentionChecked: true });
+    } catch {
+      set({ hasSeenIntention: false, intentionChecked: true });
+    }
+  },
+
+  saveIntentionTimestamp: async () => {
+    try {
+      await AsyncStorage.setItem('lastIntentionTimestamp', Date.now().toString());
+      set({ hasSeenIntention: true });
+    } catch (e) {
+      console.error('Failed to save intention timestamp:', e);
+    }
+  },
+
   // ---- Mood ----
   upsertMood: async (mood: Mood) => {
     const { session } = get();
@@ -454,6 +556,33 @@ export const useStore = create<AppState>((set, get) => ({
     } else {
       set({ nextLesson: null });
     }
+  },
+
+  // ---- Signup prompt ----
+  setHasSeenSignupPrompt: (seen: boolean) => set({ hasSeenSignupPrompt: seen }),
+
+  // ---- Dosha ----
+  setLocalDoshaResult: (result) => set({ localDoshaResult: result }),
+
+  saveDoshaResult: async (result) => {
+    const { session } = get();
+    if (!session) {
+      set({ localDoshaResult: result });
+      return;
+    }
+    const maxDosha = Object.entries(result).reduce((a, b) => (b[1] > a[1] ? b : a));
+    const doshaType = maxDosha[0];
+
+    await supabase.from('dosha_results').insert({
+      user_id: session.user.id,
+      vata_score: result.vata,
+      pitta_score: result.pitta,
+      kapha_score: result.kapha,
+    });
+
+    await supabase.from('profiles').update({ dosha_result: doshaType }).eq('id', session.user.id);
+
+    await get().fetchProfile();
   },
 
   // ---- Helpers ----

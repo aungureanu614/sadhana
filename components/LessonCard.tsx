@@ -14,33 +14,57 @@ interface LessonCardProps {
   lesson: Lesson;
   index: number;
   isCompleted: boolean;
+  isNext?: boolean;
+  isAnonymous?: boolean;
   onPress: () => void;
 }
 
-export function LessonCard({ lesson, index, isCompleted, onPress }: LessonCardProps) {
-  const actionInfo = actionLabels[lesson.action_type];
+export function LessonCard({
+  lesson,
+  index,
+  isCompleted,
+  isNext,
+  isAnonymous,
+  onPress,
+}: LessonCardProps) {
+  const actionInfo = actionLabels[lesson.action_type] || {
+    label: lesson.action_type,
+    color: colors.earthMuted,
+  };
 
   return (
     <TouchableOpacity
-      style={[styles.card, isCompleted && styles.cardCompleted]}
+      style={[styles.card, isNext && styles.cardNext]}
       activeOpacity={0.7}
       onPress={onPress}
     >
-      {/* Lesson number */}
-      <View style={[styles.number, isCompleted && styles.numberCompleted]}>
-        {isCompleted ? (
-          <Text style={styles.checkmark}>✓</Text>
-        ) : (
+      {/* Status dot */}
+      {!isAnonymous ? (
+        <View
+          style={[
+            styles.number,
+            isCompleted && styles.numberCompleted,
+            isNext && styles.numberNext,
+          ]}
+        >
+          {isCompleted ? (
+            <Text style={styles.checkmark}>✓</Text>
+          ) : isNext ? (
+            <Text style={[styles.numberText, { color: colors.white }]}>→</Text>
+          ) : (
+            <Text style={styles.numberText}>{index}</Text>
+          )}
+        </View>
+      ) : (
+        <View style={styles.number}>
           <Text style={styles.numberText}>{index}</Text>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Lesson info */}
       <View style={styles.info}>
         <Text style={styles.title}>{lesson.title}</Text>
-        {lesson.subtitle && (
-          <Text style={styles.subtitle}>{lesson.subtitle}</Text>
-        )}
+        {lesson.subtitle && <Text style={styles.subtitle}>{lesson.subtitle}</Text>}
         <View style={styles.meta}>
           <View style={[styles.actionBadge, { backgroundColor: actionInfo.color + '18' }]}>
             <Text style={[styles.actionBadgeText, { color: actionInfo.color }]}>
@@ -69,6 +93,10 @@ const styles = StyleSheet.create({
   cardCompleted: {
     opacity: 0.7,
   },
+  cardNext: {
+    borderColor: colors.clay,
+    borderWidth: 1.5,
+  },
   number: {
     width: 36,
     height: 36,
@@ -83,6 +111,10 @@ const styles = StyleSheet.create({
   numberCompleted: {
     backgroundColor: colors.sage,
     borderColor: colors.sage,
+  },
+  numberNext: {
+    backgroundColor: colors.clay,
+    borderColor: colors.clay,
   },
   numberText: {
     ...textStyles.bodySmall,
