@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useStore } from '../../../lib/store';
 import { LessonCard } from '../../../components/LessonCard';
 import { ActionRenderer } from '../../../components/ActionRenderer';
@@ -23,13 +23,29 @@ export default function ModuleDetailScreen() {
     moduleSlug: string;
     moduleId: string;
   }>();
-  const { modules, lessons, fetchLessons, getLessonsForModule, isLessonCompleted, completeLesson } =
-    useStore();
+  const router = useRouter();
+  const {
+    session,
+    modules,
+    paths,
+    lessons,
+    fetchLessons,
+    getLessonsForModule,
+    isLessonCompleted,
+    completeLesson,
+  } = useStore();
 
+  const isAuthenticated = !!session;
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
 
   const module = modules.find((m) => m.id === moduleId);
   const moduleLessons = getLessonsForModule(moduleId);
+  const path = module ? paths.find((p) => p.id === module.path_id) : null;
+
+  // Find first uncompleted lesson
+  const nextLessonId = isAuthenticated
+    ? (moduleLessons.find((l) => !isLessonCompleted(l.id))?.id ?? null)
+    : null;
 
   const navigation = useNavigation();
 
@@ -56,33 +72,42 @@ export default function ModuleDetailScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* Back button */}
+      {path && (
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>← {path.name}</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Module Header */}
       {module && (
         <View style={styles.header}>
-          <Text style={styles.sanskrit}>{module.name_sanskrit}</Text>
           <Text style={styles.title}>{module.name}</Text>
-          <Text style={styles.subtitle}>{module.subtitle}</Text>
-          <Text style={styles.description}>{module.description}</Text>
+          <Text style={styles.subtitle}>
+            {module.name_sanskrit ? `${module.name_sanskrit} · ` : ''}
+            {module.subtitle}
+          </Text>
+          {module.description && <Text style={styles.description}>{module.description}</Text>}
 
-          {/* Progress */}
-          <View style={styles.progressRow}>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width:
-                      moduleLessons.length > 0
-                        ? `${(moduleLessons.filter((l) => isLessonCompleted(l.id)).length / moduleLessons.length) * 100}%`
-                        : '0%',
-                  },
-                ]}
-              />
+          {/* Progress — authenticated only */}
+          {isAuthenticated && moduleLessons.length > 0 && (
+            <View style={styles.progressRow}>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${(moduleLessons.filter((l) => isLessonCompleted(l.id)).length / moduleLessons.length) * 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {moduleLessons.filter((l) => isLessonCompleted(l.id)).length} /{' '}
+                {moduleLessons.length}
+              </Text>
             </View>
-            <Text style={styles.progressText}>
-              {moduleLessons.filter((l) => isLessonCompleted(l.id)).length} / {moduleLessons.length}
-            </Text>
-          </View>
+          )}
         </View>
       )}
 
@@ -94,6 +119,8 @@ export default function ModuleDetailScreen() {
             lesson={lesson}
             index={index + 1}
             isCompleted={isLessonCompleted(lesson.id)}
+            isNext={lesson.id === nextLessonId}
+            isAnonymous={!isAuthenticated}
             onPress={() => setActiveLesson(lesson)}
           />
         ))}
@@ -174,9 +201,14 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.xl,
   },
-  sanskrit: {
-    ...textStyles.sanskrit,
-    marginBottom: spacing.xs,
+  backButton: {
+    marginBottom: spacing.lg,
+    alignSelf: 'flex-start' as const,
+  },
+  backButtonText: {
+    color: colors.clay,
+    fontSize: 15,
+    fontWeight: '500' as const,
   },
   title: {
     ...textStyles.h1,

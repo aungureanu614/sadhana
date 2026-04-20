@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../../lib/store';
 import { colors, textStyles, spacing, radius } from '../../constants/theme';
 import type { Mood } from '../../types';
+import JournalModal from '../../components/JournalModal';
 
 const MOODS: { key: Mood; label: string; icon: string }[] = [
   { key: 'energized', label: 'Energized', icon: '☀' },
@@ -51,21 +52,37 @@ export default function HomeScreen() {
     }
   }, [isAuthenticated]);
 
+  const [journalOpen, setJournalOpen] = useState(false);
+
   if (isAuthenticated) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <AuthenticatedGreeting name={profile?.display_name} />
         <IntentionCard intention={todayIntention?.intention} onSave={saveIntention} />
         <MoodSelector currentMood={todayIntention?.mood ?? null} onSelect={upsertMood} />
-        <RecommendedPracticeCard practice={recommendedPractice} hasDosha={!!profile?.dosha_result} router={router} />
+        <RecommendedPracticeCard
+          practice={recommendedPractice}
+          hasDosha={!!profile?.dosha_result}
+          router={router}
+        />
         <ContinueLearningCard nextLesson={nextLesson} router={router} />
+        <JournalButton onPress={() => setJournalOpen(true)} />
         <QuoteBlock quote={currentQuote} />
+        <JournalModal visible={journalOpen} onDismiss={() => setJournalOpen(false)} />
       </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
       <AnonymousGreeting />
       <BeginJourneyCard router={router} />
       <DoshaTeaser router={router} />
@@ -106,13 +123,30 @@ function BeginJourneyCard({ router }: { router: any }) {
 }
 
 function DoshaTeaser({ router }: { router: any }) {
+  const { localDoshaResult } = useStore();
+
+  if (localDoshaResult) {
+    const primary = Object.entries(localDoshaResult).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    return (
+      <TouchableOpacity
+        style={[styles.card, styles.doshaCard]}
+        activeOpacity={0.8}
+        onPress={() => router.push('/(main)/quiz' as any)}
+      >
+        <Text style={[textStyles.h3, { marginBottom: spacing.xs }]}>Your dosha</Text>
+        <Text style={[textStyles.h2, { marginBottom: spacing.xs }]}>
+          {primary.charAt(0).toUpperCase() + primary.slice(1)}
+        </Text>
+        <Text style={{ color: colors.clay, fontWeight: '600', fontSize: 15 }}>Retake quiz →</Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
-      style={[styles.card, styles.outlineCard]}
+      style={[styles.card, styles.doshaCard]}
       activeOpacity={0.8}
-      onPress={() => {
-        // TODO: navigate to dosha quiz when it exists
-      }}
+      onPress={() => router.push('/(main)/quiz' as any)}
     >
       <Text style={[textStyles.h3, { marginBottom: spacing.xs }]}>Discover your dosha</Text>
       <Text style={[textStyles.bodySmall, { marginBottom: spacing.md }]}>
@@ -134,7 +168,13 @@ function AuthenticatedGreeting({ name }: { name?: string | null }) {
   );
 }
 
-function IntentionCard({ intention, onSave }: { intention?: string; onSave: (text: string) => Promise<void> }) {
+function IntentionCard({
+  intention,
+  onSave,
+}: {
+  intention?: string;
+  onSave: (text: string) => Promise<void>;
+}) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(intention || '');
 
@@ -176,14 +216,22 @@ function IntentionCard({ intention, onSave }: { intention?: string; onSave: (tex
         </TouchableOpacity>
       ) : (
         <TouchableOpacity onPress={() => setEditing(true)} style={{ marginTop: spacing.sm }}>
-          <Text style={[textStyles.body, { color: colors.clay }]}>Set your intention for today</Text>
+          <Text style={[textStyles.body, { color: colors.clay }]}>
+            Set your intention for today
+          </Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function MoodSelector({ currentMood, onSelect }: { currentMood: Mood | null; onSelect: (m: Mood) => Promise<void> }) {
+function MoodSelector({
+  currentMood,
+  onSelect,
+}: {
+  currentMood: Mood | null;
+  onSelect: (m: Mood) => Promise<void>;
+}) {
   return (
     <View style={styles.card}>
       <Text style={[textStyles.caption, { marginBottom: spacing.sm }]}>HOW ARE YOU FEELING?</Text>
@@ -207,7 +255,15 @@ function MoodSelector({ currentMood, onSelect }: { currentMood: Mood | null; onS
   );
 }
 
-function RecommendedPracticeCard({ practice, hasDosha, router }: { practice: any; hasDosha: boolean; router: any }) {
+function RecommendedPracticeCard({
+  practice,
+  hasDosha,
+  router,
+}: {
+  practice: any;
+  hasDosha: boolean;
+  router: any;
+}) {
   if (!practice) return null;
 
   const doshaKeys = practice.dosha_affinity ? Object.keys(practice.dosha_affinity) : [];
@@ -218,7 +274,10 @@ function RecommendedPracticeCard({ practice, hasDosha, router }: { practice: any
       style={[styles.card, styles.practiceCard]}
       activeOpacity={0.85}
       onPress={() => {
-        // TODO: navigate to practice detail
+        router.push({
+          pathname: '/(main)/practice/[practiceSlug]' as any,
+          params: { practiceSlug: practice.slug, practiceId: practice.id },
+        });
       }}
     >
       <Text style={[textStyles.caption, { color: colors.clay, marginBottom: spacing.sm }]}>
@@ -228,7 +287,10 @@ function RecommendedPracticeCard({ practice, hasDosha, router }: { practice: any
         {practice.title}
       </Text>
       {practice.description && (
-        <Text style={{ color: colors.sandDark, fontSize: 14, marginBottom: spacing.sm }} numberOfLines={1}>
+        <Text
+          style={{ color: colors.sandDark, fontSize: 14, marginBottom: spacing.sm }}
+          numberOfLines={1}
+        >
           {practice.description}
         </Text>
       )}
@@ -251,7 +313,14 @@ function RecommendedPracticeCard({ practice, hasDosha, router }: { practice: any
         <Text style={styles.buttonClayText}>Begin practice</Text>
       </View>
       {!hasDosha && (
-        <Text style={{ color: colors.sandDark, fontSize: 12, marginTop: spacing.sm, textAlign: 'center' }}>
+        <Text
+          style={{
+            color: colors.sandDark,
+            fontSize: 12,
+            marginTop: spacing.sm,
+            textAlign: 'center',
+          }}
+        >
           Take the dosha quiz for personalized recommendations
         </Text>
       )}
@@ -283,7 +352,10 @@ function ContinueLearningCard({ nextLesson, router }: { nextLesson: any; router:
       style={styles.card}
       activeOpacity={0.8}
       onPress={() => {
-        // TODO: navigate to lesson detail
+        router.push({
+          pathname: '/(main)/lesson/[lessonSlug]' as any,
+          params: { lessonSlug: lesson.slug, lessonId: lesson.id, moduleId: lesson.module_id },
+        });
       }}
     >
       <Text style={[textStyles.caption, { marginBottom: spacing.xs }]}>CONTINUE LEARNING</Text>
@@ -292,7 +364,9 @@ function ContinueLearningCard({ nextLesson, router }: { nextLesson: any; router:
         {pathName} · {moduleName}
       </Text>
       <View style={styles.progressBarBg}>
-        <View style={[styles.progressBarFill, { width: `${Math.round(progress * 100)}%` as any }]} />
+        <View
+          style={[styles.progressBarFill, { width: `${Math.round(progress * 100)}%` as any }]}
+        />
       </View>
       <Text style={[textStyles.bodySmall, { marginTop: spacing.xs }]}>
         {completedCount}/{totalCount} lessons completed
@@ -302,6 +376,14 @@ function ContinueLearningCard({ nextLesson, router }: { nextLesson: any; router:
 }
 
 // ───── Shared Components ─────
+
+function JournalButton({ onPress }: { onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.journalButton} activeOpacity={0.7} onPress={onPress}>
+      <Text style={styles.journalButtonText}>Write in your journal</Text>
+    </TouchableOpacity>
+  );
+}
 
 function QuoteBlock({ quote }: { quote: any }) {
   if (!quote) return null;
@@ -332,6 +414,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: colors.earthMuted,
+  },
+  doshaCard: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.clay,
   },
   intentionCard: {
     borderLeftWidth: 3,
@@ -407,5 +495,16 @@ const styles = StyleSheet.create({
     ...textStyles.bodySmall,
     marginTop: spacing.xs,
     color: colors.earthMuted,
+  },
+  journalButton: {
+    alignItems: 'center' as const,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  journalButtonText: {
+    color: colors.clay,
+    fontSize: 15,
+    fontWeight: '500' as const,
+    fontStyle: 'italic' as const,
   },
 });

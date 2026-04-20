@@ -11,13 +11,17 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { useStore } from '../../lib/store';
+import { useRouter } from 'expo-router';
 import { colors, textStyles, spacing, radius } from '../../constants/theme';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
   const [loading, setLoading] = useState(false);
+  const { localDoshaResult, saveDoshaResult } = useStore();
 
   const handleAuth = async () => {
     if (!email || !password) {
@@ -28,9 +32,15 @@ export default function LoginScreen() {
     setLoading(true);
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) Alert.alert('Error', error.message);
-      else Alert.alert('Check your email', 'We sent you a confirmation link.');
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        // Persist local dosha result if it exists
+        if (localDoshaResult && data.session) {
+          await saveDoshaResult(localDoshaResult);
+        }
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) Alert.alert('Error', error.message);
@@ -45,10 +55,31 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
+        {/* Dismiss */}
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={() => {
+            if (router.canDismiss()) {
+              router.dismiss();
+            } else if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(main)/home');
+            }
+          }}
+        >
+          <Text style={styles.dismissText}>✕</Text>
+        </TouchableOpacity>
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.appName}>Sadhana</Text>
-          <Text style={styles.tagline}>The complete path of yoga</Text>
+          <Text style={styles.welcome}>{isSignUp ? 'Welcome to Sadhana' : 'Welcome back'}</Text>
+          <Text style={styles.tagline}>
+            {isSignUp
+              ? 'Begin your journey with a free account.'
+              : 'Sign in to continue your practice.'}
+          </Text>
         </View>
 
         {/* Form */}
@@ -72,7 +103,11 @@ export default function LoginScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[
+              styles.button,
+              isSignUp && styles.buttonSignup,
+              loading && styles.buttonDisabled,
+            ]}
             onPress={handleAuth}
             disabled={loading}
           >
@@ -81,14 +116,9 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.switchButton}
-            onPress={() => setIsSignUp(!isSignUp)}
-          >
+          <TouchableOpacity style={styles.switchButton} onPress={() => setIsSignUp(!isSignUp)}>
             <Text style={styles.switchText}>
-              {isSignUp
-                ? 'Already have an account? Sign in'
-                : "New to the path? Create an account"}
+              {isSignUp ? 'Already have an account? Sign in' : 'New to the path? Create an account'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -107,6 +137,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
+  dismissButton: {
+    position: 'absolute',
+    top: spacing.xxl + spacing.md,
+    right: 0,
+    padding: spacing.sm,
+  },
+  dismissText: {
+    fontSize: 22,
+    color: colors.earthMuted,
+    fontWeight: '300',
+  },
   header: {
     alignItems: 'center',
     marginBottom: spacing.xxl,
@@ -117,12 +158,16 @@ const styles = StyleSheet.create({
     color: colors.earth,
     letterSpacing: 4,
     textTransform: 'uppercase',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  welcome: {
+    ...textStyles.h2,
+    marginBottom: spacing.xs,
   },
   tagline: {
     ...textStyles.bodySmall,
     color: colors.earthMuted,
-    fontStyle: 'italic',
+    textAlign: 'center',
   },
   form: {
     gap: spacing.md,
@@ -143,6 +188,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
+  },
+  buttonSignup: {
+    backgroundColor: colors.clay,
   },
   buttonDisabled: {
     opacity: 0.6,
